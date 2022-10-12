@@ -33,7 +33,7 @@ exports.getManagers = function(){
             var temp;
             const manList = [];
             for(managers of employees){
-                if(managers.isManager = true){
+                if(managers.isManager == true){
                     temp = managers;
                     manList.push(temp);
                 }
