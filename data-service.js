@@ -50,4 +50,80 @@ exports.getDepartments = function(){
         },randomTime);
     });
 }
-
+exports.addEmployee = function(employeeData){
+    if(employeeData.isManager == null)
+        employeeData.isManager = false;
+    else
+        employeeData.isManager = true; 
+        employeeData.employeeNum = employees.length + 1;
+        employees.push(employeeData);
+    return new Promise(function(resolve, reject){
+        setTimeout(function(){
+            console.log("Get New Employee");
+        },randomTime);
+        resolve();
+    });
+}
+exports.getEmployeesByStatus = function(status){
+    return new Promise(function(resolve, reject){
+        setTimeout(function(){
+            console.log("Get Employees By Status");
+            var temp;
+            const manList = [];
+            for(stat of employees){
+                if(stat.status == status){
+                    temp = stat;
+                    
+                    manList.push(temp);
+                }
+            }
+            resolve(manList);
+        },randomTime);
+    });
+}
+exports.getEmployeesByDepartment = function(Department){
+    return new Promise(function(resolve, reject){
+        setTimeout(function(){
+            console.log("Get Employees By Department");
+            var temp;
+            const manList = [];
+            for(Dept of employees){
+                if(Dept.department == Department){
+                    temp = Dept;
+                    manList.push(temp);
+                }
+            }
+            resolve(manList);
+        },randomTime);
+    });
+}
+exports.getEmployeesByManager = function(manager){
+    return new Promise(function(resolve, reject){
+        setTimeout(function(){
+            console.log("Get Employees By Manager");
+            var temp;
+            const manList = [];
+            for(mng of employees){
+                if(mng.employeeManagerNum == manager){
+                    temp = mng;
+                    manList.push(temp);
+                }
+            }
+            resolve(manList);
+        },randomTime);
+    });
+}
+exports.getEmployeeByNum = function(num){
+    return new Promise(function(resolve, reject){
+        setTimeout(function(){
+            console.log("Get Employees By Num");
+            var temp;
+            for(nm of employees){
+                if(nm.employeeNum == num){
+                    temp = nm;
+                }
+            }
+            resolve(temp);
+        },randomTime);
+    });
+}

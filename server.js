@@ -117,4 +117,4 @@ dataServ.initialize()
 .then(() => {app.listen(HTTP_PORT, onHttpStart)})
 .catch(function(reason){
   console.log(reason);
-});~
+});
