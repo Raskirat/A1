@@ -15,8 +15,30 @@ var express = require("express");
 var app = express();
 var path = require("path");
 var dataServ = require("./data-service")
+const exphbs = require("express-handlebars");
+app.engine('.hbs', exphbs.engine({ extname: '.hbs', defaultLayout: 'main', helpers: {
+  navLink: function(url, options){
+  return '<li' + ((url == app.locals.activeRoute) ? ' class="active" ' : '') +
+  '><a href=" ' + url + ' ">' + options.fn(this) + '</a></li>';
+ },
+ equal: function (lvalue, rvalue, options) {
+  if (arguments.length < 3)
+  throw new Error("Handlebars Helper equal needs 2 parameters");
+  if (lvalue != rvalue) {
+  return options.inverse(this);
+  } else {
+  return options.fn(this);
+  }
+ } } }));
+app.set('view engine', '.hbs');
 app.use(express.json());
 app.use(express.urlencoded({extended: true}));
+app.use(function(req,res,next){
+  let route = req.baseUrl + req.path;
+  app.locals.activeRoute = (route == "/") ? "/" : route.replace(/\/$/, "");
+  next();
+ });
+ 
 //img stuff
 var multer = require("multer");
 const storage = multer.diskStorage({
@@ -35,7 +57,7 @@ app.get("/images", function(req,res){
     if(err)
       console.log(err);
     else{
-      res.json({images: items})
+      res.render("images", {images: items, layout: false});
     }
   });
 });
@@ -46,10 +68,10 @@ function onHttpStart() {
 app.use(express.static('public')); 
 // setup a 'route' to listen on the default url path
 app.get("/", function(req,res){
-    res.sendFile(path.join(__dirname,"/views/home.html"));
-  });
+  res.render('home');  
+});
 app.get("/about", function(req,res){
-    res.sendFile(path.join(__dirname,"/views/about.html"));
+  res.render('about');  
   });
 app.get("/employees", function(req,res){
   if(req.query.status){
@@ -75,22 +97,27 @@ app.get("/employees", function(req,res){
   }
   else{
     dataServ.getAllEmployees()
-    .then((data) => { res.json(data) })
-    .catch((err) => { res.json({message: err}) });
+    .then((data) => {res.render("employees",{employees: data})})
+    .catch((err) => { res.render({message: "No Results"}) });
     return;
   }
 })
 app.get("/employee/:value", function(req,res){
   var val = req.params.value;
   dataServ.getEmployeeByNum(val)
-    .then((data) => { res.json(data) })
-    .catch((err) => { res.json({message: err}) });
+    .then((data) => { res.render("employee", { employee: data }); })
+    .catch((err) => {  res.render("employee",{message:"no results"}); });
 });
 app.get("/employees/add", function(req,res){
-  res.sendFile(path.join(__dirname,"/views/addEmployee.html"));
+  res.render('addEmployee');  
 });
+app.post("/employee/update", (req, res) => {
+  dataServ.updateEmployee(req.body)
+    .then(() => { res.redirect("/employees"); })
+    .catch((err) => { res.json({message: err}) });
+ });
 app.get("/images/add", function(req,res){
-  res.sendFile(path.join(__dirname,"/views/addImage.html"));
+  res.render('addImage');  
 });
 app.get("/managers", function(req,res){
   dataServ.getManagers()
@@ -99,8 +126,8 @@ app.get("/managers", function(req,res){
 });
 app.get("/departments", function(req,res){
   dataServ.getDepartments()
-  .then((data) => { res.json(data) })
-  .catch((err) => { res.json({message: err}) });
+  .then((data) => {res.render("departments",{departments: data})})
+  .catch((err) => { res.render({message: "No Results"}) });
 });
 //Middleware Stuff
 app.post("/employees/add", function(req,res){

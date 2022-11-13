@@ -127,3 +127,17 @@ exports.getEmployeeByNum = function(num){
         },randomTime);
     });
 }
+
+exports.updateEmployee = function(employeeData){
+    return new Promise(function(resolve, reject){
+        setTimeout(function(){
+            console.log("Update Employees");
+            for(nm of employees){
+                if(nm.employeeNum == employeeData.employeeNum){
+                    employees[employeeData.employeeNum - 1] = employeeData;
+                }
+            }
+            resolve();
+        },randomTime);
+    });
+}
