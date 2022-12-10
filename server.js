@@ -15,6 +15,8 @@ var express = require("express");
 var app = express();
 var path = require("path");
 var dataServ = require("./data-service")
+var dataServiceAuth = require("./data-service-auth")
+var clientSessions = require("client-sessions");
 const exphbs = require("express-handlebars");
 app.engine('.hbs', exphbs.engine({ extname: '.hbs', defaultLayout: 'main', helpers: {
   navLink: function(url, options){
@@ -31,6 +33,12 @@ app.engine('.hbs', exphbs.engine({ extname: '.hbs', defaultLayout: 'main', helpe
   }
  } } }));
 app.set('view engine', '.hbs');
+app.use(clientSessions({
+  cookieName: "session", // this is the object name that will be added to 'req'
+  secret: "week10example_web322", // this should be a long un-guessable string.
+  duration: 2 * 60 * 1000, // duration of the session in milliseconds (2 minutes)
+  activeDuration: 1000 * 60 // the session will be extended by this many ms each request (1 minute)
+}));
 app.use(express.json());
 app.use(express.urlencoded({extended: true}));
 app.use(function(req,res,next){
@@ -38,7 +46,17 @@ app.use(function(req,res,next){
   app.locals.activeRoute = (route == "/") ? "/" : route.replace(/\/$/, "");
   next();
  });
- 
+ app.use(function(req, res, next) {
+  res.locals.session = req.session;
+  next();
+ });
+ function ensureLogin(req, res, next) {
+  if (!req.session.user) {
+    res.redirect("/login");
+  } else {
+    next();
+  }
+}
 //img stuff
 var multer = require("multer");
 const storage = multer.diskStorage({
@@ -73,7 +91,7 @@ app.get("/", function(req,res){
 app.get("/about", function(req,res){
   res.render('about');  
   });
-app.get("/employees", function(req,res){
+app.get("/employees", ensureLogin, function(req,res){
   if(req.query.status){
     var stat = req.query.status;
     dataServ.getEmployeesByStatus(stat)
@@ -106,7 +124,7 @@ app.get("/employees", function(req,res){
     return;
   }
 })
-app.get("/employee/:empNum", (req, res) => {
+app.get("/employee/:empNum", ensureLogin, (req, res) => {
   // initialize an empty object to store the values
   let viewData = {};
   dataService.getEmployeeByNum(req.params.empNum).then((data) => {
@@ -140,56 +158,56 @@ app.get("/employee/:empNum", (req, res) => {
   });
  });
  
- app.get('/employees/add', (req, res) => {
-  data.getDepartments()
+ app.get('/employees/add', ensureLogin, (req, res) => {
+  dataServ.getDepartments()
     .then(function (data) {
       res.render('addEmployee', { departments: data });
     })
     .catch(() => res.render('addEmployee', { departments: [] }));
 });
 app.get('/employees/delete/:empNum', (req, res) => {
-  data.deleteEmployeeByNum(req.params.empNum)
+  dataServ.deleteEmployeeByNum(req.params.empNum)
     .then(() => res.redirect('/employees'))
     .catch(() => res.status(500).send('delete employee error'));
 });
 
-app.post("/employee/update", (req, res) => {
+app.post("/employee/update", ensureLogin, (req, res) => {
   dataServ.updateEmployee(req.body)
     .then(() => { res.redirect("/employees"); })
     .catch((err) => { res.json({message: err}) });
  });
-app.get("/images/add", function(req,res){
+app.get("/images/add", ensureLogin, function(req,res){
   res.render('addImage');  
 });
-app.get("/managers", function(req,res){
+app.get("/managers", ensureLogin, function(req,res){
   dataServ.getManagers()
   .then((data) => { res.json(data) })
   .catch((err) => { res.json({message: err}) });
 });
-app.get("/departments", function(req,res){
+app.get("/departments", ensureLogin, function(req,res){
   dataServ.getDepartments()
-  .then((data) => {if (data.length() > 0) res.render("departments",{departments: data})
-else res.render("departments",{ message: "no results" })})
-  .catch((err) => {res.json({message: err}) });
+  .then((data) => { if(data.length > 0){res.render("departments", {departments: data})}
+    else{res.render("departments",{message: "no results"})};})
+  .catch((err) => { res.json({message: err}) });
 });
-app.get("/departments/add", function(req,res){
+app.get("/departments/add", ensureLogin, function(req,res){
   res.render('addDepartment');
 });
 
-app.post('/departments/add', (req, res) => {
-  data.addDepartment(req.body)
+app.post('/departments/add', ensureLogin, (req, res) => {
+  dataServ.addDepartment(req.body)
     .then(() => res.redirect('/departments'))
     .catch((err) => res.json({ message: err }));
 });
 
-app.post('/departments/update', (req, res) => {
-  data.updateDepartment(req.body)
+app.post('/departments/update', ensureLogin, (req, res) => {
+  dataServ.updateDepartment(req.body)
     .then(res.redirect('/departments'))
     .catch((err) => res.json({ message: err }));
 });
 
-app.get('/department/:departmentId', (req, res) => {
-  data.getDepartmentById(req.params.departmentId)
+app.get('/department/:departmentId', ensureLogin, (req, res) => {
+  dataServ.getDepartmentById(req.params.departmentId)
     .then((data) => {
       if (data.length > 0) {
         res.render('department', { department: data })
@@ -203,18 +221,51 @@ app.get('/department/:departmentId', (req, res) => {
     });
 });
 //Middleware Stuff
-app.post("/employees/add", function(req,res){
+app.post("/employees/add", ensureLogin, function(req,res){
   dataServ.addEmployee(req.body)
   .then(() => { res.redirect("/employees") })
   .catch((err) => { res.json({message: err}) });
 });
-
+app.get("/login", function(req,res){
+  res.render('login');  
+});
+app.get("/register", function(req,res){
+  res.render('register');  
+});
+app.post("/register", function(req,res){
+  dataServiceAuth.registerUser(req.body)
+  .then(() => { res.render('register', { successMessage: "User created" }) })
+  .catch((err) => { res.render('register', { errorMessage: err, userName: req.body.userName }) });
+});
+app.post("/login", function(req,res){
+  req.body.userAgent = req.get('User-Agent');
+  dataServiceAuth.checkUser(req.body).then((user) => {
+    req.session.user = {
+    userName: user.userName, // complete it with authenticated user's userName
+    email: user.email, // complete it with authenticated user's email
+    loginHistory: user.loginHistory // complete it with authenticated user's loginHistory
+    }
+    res.redirect('/employees');
+   })
+   .catch((err) => { res.render('login', { errorMessage: err, userName: req.body.userName }) });
+});
+app.get("/logout", function(req,res){
+  req.session.reset();
+  res.redirect('/');  
+});
+app.get("/userHistory", ensureLogin, function(req,res){
+  res.render('userHistory');
+});
 app.get("*", function(req,res){
   res.send("Uh Oh! Error 404: File Not Found");
 });
 // setup http server to listen on HTTP_PORT
 dataServ.initialize()
-.then(() => {app.listen(HTTP_PORT, onHttpStart)})
-.catch(function(reason){
-  console.log(reason);
+.then(dataServiceAuth.initialize)
+.then(function(){
+ app.listen(HTTP_PORT, function(){
+ console.log("app listening on: " + HTTP_PORT)
+ });
+}).catch(function(err){
+ console.log("unable to start server: " + err);
 });
