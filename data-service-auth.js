@@ -41,14 +41,14 @@ exports.registerUser = function(userData){
                 bcrypt.hash(newUser.password, salt, function(er, hash) { 
                     if (!er){
                         newUser.password = hash;
-                        newUser.save((err) => {
-                        if(err.code == 11000)
-                            reject("User Name already taken");
-                        else if(err)
-                            reject(`There was an error creating the user: ${err}`)
-                        else
+                        newUser.save().then(()=>{
                             resolve();
-                        });
+                      }).catch(err=>{
+                            if(err.code == 11000)
+                                reject("User Name already taken");
+                            else
+                                reject(`"There was an error creating the user: ${err}`);
+                      });
                     }
                 });
             });
@@ -66,7 +66,7 @@ exports.checkUser = function(userData){
                     if (check == false)
                         reject(`Incorrect Password for user: ${userData.userName}`);
                     else{ 
-                        foundUser.loginHistory.push({dataTime : new Date().toString(), userAgent : userData.userAgent});
+                        foundUser.loginHistory.push({dateTime : new Date().toString(), userAgent : userData.userAgent});
                         User.update({userName : foundUser.userName},  { $set: {loginHistory: foundUser.loginHistory}}, 
                             { multi: false}).exec()
                             .then(function(){ resolve(foundUser)})

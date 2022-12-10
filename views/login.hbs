@@ -5,7 +5,7 @@
         <hr>
         {{#if errorMessage}}
 <div class="alert alert-danger"> <strong>Error:</strong> {{errorMessage}}</div>
-{{else}}
+{{/if}}
         <form name="login" method = "POST" action="/login">
             <div class="row">
                 <div class="col-md-12">
@@ -24,6 +24,5 @@
             <input class="btn btn-success pull-right" type="submit" value="Login">
         </form>
     </div>
-    {{/if}}
 </div>
 </div>
